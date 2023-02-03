@@ -1,13 +1,14 @@
-import { parse } from "csv-parse/.";
+import { parse } from "csv-parse";
+import { randomUUID } from "node:crypto";
+import fs from "node:fs";
 
-import { Database } from "../src/database";
-import { buildRoutePath } from "../src/utils/build-route-path";
-
+import { Database } from "../src/database.js";
+import { buildRoutePath } from "../src/utils/build-route-path.js";
 
 
 const database = new Database();
 
-export const routes = [
+export const taskRoutes = [
 
   // Get all Tasks
   {
@@ -15,13 +16,14 @@ export const routes = [
     path: buildRoutePath("/tasks"),
     handler: (req, res) => {
       const { search } = req.query;
-      const tasks = database.select("tasks", {
+
+      const searchTasksData = search ? {
         title: search,
         description: search,
-        completed_at: search,
-        created_at: search,
-        updated_at: search,
-      });
+      } : null;
+
+      const tasks = database.select("tasks", searchTasksData);
+
       return res.end(JSON.stringify(tasks));
     },
   },
@@ -34,8 +36,9 @@ export const routes = [
       const { title, description } = req.body;
 
       if(!title || !description) {
-        return res.writeHead(400).end("Missing title or description")
+        return res.writeHead(400).end(JSON.stringify("Missing title or description"));
       }
+
 
       const task = {
         id: randomUUID(),
@@ -46,7 +49,7 @@ export const routes = [
         updated_at: new Date(),
       };
       database.insert("tasks", task);
-      return res.writeHead(201).end("Task created");
+      return res.writeHead(201).end(JSON.stringify("Task created"));
     },
   },
 
@@ -59,15 +62,15 @@ export const routes = [
       const { title, description } = req.body;
 
       if(database.select("tasks", { id }).length === 0) {
-        return res.writeHead(404).end("Task not found");
+        return res.writeHead(404).end(JSON.stringify("Task not found"));
       }
 
       if(!title || !description) {
-        return res.writeHead(400).end("Missing title or description");
+        return res.writeHead(400).end(JSON.stringify("Missing title or description"));
       }
 
       database.update("tasks", id, { title, description });
-      return res.writeHead(204).end("Task updated");
+      return res.writeHead(204).end(JSON.stringify("Task updated"));
     },
   },
 
@@ -79,11 +82,11 @@ export const routes = [
       const { id } = req.params;
 
       if(database.select("tasks", { id }).length === 0) {
-        return res.writeHead(404).end("Task not found");
+        return res.writeHead(404).end(JSON.stringify("Task not found"));
       }
 
       database.delete("tasks", id);
-      return res.writeHead(204).end("Task deleted");
+      return res.writeHead(204).end(JSON.stringify("Task deleted"));
     }
   },
 
@@ -95,11 +98,16 @@ export const routes = [
       const { id } = req.params;
 
       if(database.select("tasks", { id }).length === 0) {
-        return res.writeHead(404).end("Task not found");
+        return res.writeHead(404).end(JSON.stringify("Task not found"));
+      }
+
+      if(database.select("tasks", { id })[0].completed_at) {
+        database.update("tasks", id, { completed_at: null });
+        return res.writeHead(204).end(JSON.stringify("Task uncompleted"));
       }
 
       database.update("tasks", id, { completed_at: new Date() });
-      return res.writeHead(204).end("Task completed");
+      return res.writeHead(204).end(JSON.stringify("Task completed"));
     }
   },
 
@@ -108,13 +116,8 @@ export const routes = [
     method: "POST",
     path: buildRoutePath("/tasks/import"),
     handler: (req, res) => {
-      const tasks = req.file
 
-      if(!tasks) {
-        return res.writeHead(400).end("Missing tasks file");
-      }
-
-      const csvPath = new URL(tasks.path, import.meta.url);
+      const csvPath = new URL('./tasks.csv', import.meta.url);
       const stream = fs.createReadStream(csvPath);
       const csvParse = parse({
         delimiter: ",",
@@ -140,7 +143,7 @@ export const routes = [
       });
 
       lineParse.on("end", () => {
-        return res.writeHead(201).end("Tasks imported");
+        return res.writeHead(201).end(JSON.stringify("Tasks imported"));
       });
     }
   },

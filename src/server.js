@@ -1,7 +1,7 @@
 import http from "node:http";
 
+import { taskRoutes } from "../challenge/tasks.js";
 import { json } from "./middelewares/json.js";
-import { routes } from "./routes.js";
 import { extractQueryParams } from "./utils/extract-query-params.js";
 
 const server = http.createServer(async (req, res) => {
@@ -9,11 +9,13 @@ const server = http.createServer(async (req, res) => {
 
   await json(req, res);
 
-  const route = routes.find((route) => {
+  const route = taskRoutes.find((route) => {
     return route.method === method && route.path.test(url);
   });
 
-  if (route) {
+  console.log(route);
+
+  if(route) {
     const routeParams = req.url.match(route.path);
 
     // console.log(extractQueryParams(routeParams.groups.query))
@@ -32,5 +34,5 @@ const server = http.createServer(async (req, res) => {
 const port = 6969;
 
 server.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+  console.log(`Server is running on port ${ port }`);
 });
